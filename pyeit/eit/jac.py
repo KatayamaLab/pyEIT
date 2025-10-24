@@ -2,7 +2,8 @@
 # pylint: disable=invalid-name, no-member, too-many-arguments
 # pylint: disable=too-many-instance-attributes, too-many-locals
 # pylint: disable=arguments-differ
-""" dynamic EIT solver using JAC """
+"""dynamic EIT solver using JAC"""
+
 # Copyright (c) Benyuan Liu. All Rights Reserved.
 # Distributed under the (new) BSD License. See LICENSE.txt for more info.
 from __future__ import division, absolute_import, print_function, annotations
@@ -85,7 +86,9 @@ class JAC(EitBase):
         np.ndarray
             H matrix, pseudo-inverse matrix of JAC
         """
-        j_w_j = np.dot(jac.transpose(), jac)
+        # Use Hermitian transpose (conjugate transpose) for complex matrices
+        j_conj_t = jac.conj().T if np.iscomplexobj(jac) else jac.T
+        j_w_j = np.dot(j_conj_t, jac)
         if method == "kotre":
             # p=0   : noise distribute on the boundary ('dgn')
             # p=0.5 : noise distribute on the middle
@@ -100,7 +103,7 @@ class JAC(EitBase):
             r_mat = np.eye(jac.shape[1])
 
         # build H
-        return np.dot(la.inv(j_w_j + lamb * r_mat), jac.transpose())
+        return np.dot(la.inv(j_w_j + lamb * r_mat), j_conj_t)
 
     def solve_gs(self, v1: np.ndarray, v0: np.ndarray):
         """
@@ -124,7 +127,8 @@ class JAC(EitBase):
             complex-valued np.ndarray, changes of conductivities
         """
         self._check_solver_is_ready()
-        a = np.dot(v1, v0) / np.dot(v0, v0)
+        # Use vdot for complex-safe dot product (computes v1* · v0)
+        a = np.vdot(v1, v0) / np.vdot(v0, v0)
         dv = v1 - a * v0
         # return ds average epsilon on element
         return -np.dot(self.H, dv.transpose())
@@ -165,9 +169,10 @@ class JAC(EitBase):
         """
         self._check_solver_is_ready()
         if normalize:
-            dv = np.log(np.abs(v1) / np.abs(v0)) * np.sign(v0.real)
+            # For complex data, use magnitude for log-normalization
+            dv = np.log(np.abs(v1) / np.abs(v0)) * np.sign(np.real(v0))
         else:
-            dv = (v1 - v0) * np.sign(v0.real)
+            dv = (v1 - v0) * np.sign(np.real(v0))
         # s_r = J^Tv_r
         ds = -np.dot(self.J.conj().T, dv)
         return np.exp(ds) - 1.0
@@ -281,6 +286,9 @@ class JAC(EitBase):
             item = None
             for item in real_gen():
                 pass
+            # Ensure dtype is preserved
+            if item is not None:
+                item = np.asarray(item, dtype=self.mesh.dtype)
             return item
         else:
             return real_gen()
@@ -336,13 +344,15 @@ def h_matrix(jac: np.ndarray, p: float, lamb: float, method: str = "kotre"):
     np.ndarray
         H matrix, pseudo-inverse matrix of JAC
     """
-    j_w_j = np.dot(jac.transpose(), jac)
+    # Use Hermitian transpose (conjugate transpose) for complex matrices
+    j_conj_t = jac.conj().T if np.iscomplexobj(jac) else jac.T
+    j_w_j = np.dot(j_conj_t, jac)
     if method == "kotre":
         # see adler-dai-lionheart-2007
         # p=0   : noise distribute on the boundary ('dgn')
         # p=0.5 : noise distribute on the middle
         # p=1   : noise distribute on the center ('lm')
-        r_mat = np.diag(np.diag(j_w_j)) ** p
+        r_mat = np.diag(np.diag(j_w_j) ** p)
     elif method == "lm":
         # Marquardt–Levenberg, 'lm' for short
         # or can be called NOSER, DLS
@@ -352,7 +362,7 @@ def h_matrix(jac: np.ndarray, p: float, lamb: float, method: str = "kotre"):
         r_mat = np.eye(jac.shape[1])
 
     # build H
-    return np.dot(la.inv(j_w_j + lamb * r_mat), jac.transpose())
+    return np.dot(la.inv(j_w_j + lamb * r_mat), j_conj_t)
 
 
 def sar(el2no: np.ndarray) -> np.ndarray:
