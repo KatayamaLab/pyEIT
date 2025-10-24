@@ -1,7 +1,8 @@
 # coding: utf-8
 # pylint: disable=invalid-name, no-member, too-many-locals
 # pylint: disable=too-many-instance-attributes
-""" 2D/3D FEM routines """
+"""2D/3D FEM routines"""
+
 # Copyright (c) Benyuan Liu. All Rights Reserved.
 # Distributed under the (new) BSD License. See LICENSE.txt for more info.
 from __future__ import division, absolute_import, print_function, annotations
@@ -90,7 +91,11 @@ class Forward:
         b[self.mesh.el_pos[ex_line]] = [1, -1]
 
         # solve
-        return scipy.sparse.linalg.spsolve(self.kg, b)
+        result = scipy.sparse.linalg.spsolve(self.kg, b)
+        # Ensure complex dtype is preserved if kg is complex
+        if self.mesh.dtype == np.complex128 and result.dtype != np.complex128:
+            result = result.astype(np.complex128)
+        return result
 
     def solve_vectorized(self, ex_mat: np.ndarray) -> np.ndarray:
         """
@@ -117,7 +122,15 @@ class Forward:
         # using natural boundary conditions
         b = np.zeros((ex_mat.shape[0], self.mesh.n_nodes))
         b[np.arange(b.shape[0])[:, None], self.mesh.el_pos[ex_mat]] = [1, -1]
-        result = np.empty((ex_mat.shape[0], self.kg.shape[0]))
+        result = np.empty((ex_mat.shape[0], self.kg.shape[0]), dtype=self.mesh.dtype)
+        # TODO Need to inspect this deeper
+        for i in range(result.shape[0]):
+            result[i] = sparse.linalg.spsolve(self.kg, b[i])
+
+        # solve
+        return result
+        # Initialize result array with correct dtype (complex if needed)
+        result = np.empty((ex_mat.shape[0], self.kg.shape[0]), dtype=self.mesh.dtype)
 
         # TODO Need to inspect this deeper
         for i in range(result.shape[0]):
@@ -206,7 +219,8 @@ class EITForward(Forward):
         f = self.solve_vectorized(self.protocol.ex_mat)
         v = subtract_row_vectorized(f[:, self.mesh.el_pos], self.protocol.meas_mat)
 
-        return v.reshape(-1)
+        # Ensure dtype is preserved
+        return v.astype(self.mesh.dtype).reshape(-1)
 
     def compute_jac(
         self,
