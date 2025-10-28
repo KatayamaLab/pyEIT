@@ -122,22 +122,23 @@ class Forward:
         # using natural boundary conditions
         b = np.zeros((ex_mat.shape[0], self.mesh.n_nodes))
         b[np.arange(b.shape[0])[:, None], self.mesh.el_pos[ex_mat]] = [1, -1]
+        # Build result list to handle dtype conversion properly
+        result_list = []
         result = np.empty((ex_mat.shape[0], self.kg.shape[0]), dtype=self.mesh.dtype)
-        # TODO Need to inspect this deeper
-        for i in range(result.shape[0]):
-            result[i] = sparse.linalg.spsolve(self.kg, b[i])
+        for i in range(ex_mat.shape[0]):
+            sol = sparse.linalg.spsolve(self.kg, b[i])
+            # Ensure complex dtype is preserved if kg is complex
+            if np.iscomplexobj(self.kg) and not np.iscomplexobj(sol):
+                sol = sol.astype(np.complex128)
+            result_list.append(sol)
 
         # solve
-        return result
-        # Initialize result array with correct dtype (complex if needed)
-        result = np.empty((ex_mat.shape[0], self.kg.shape[0]), dtype=self.mesh.dtype)
-
-        # TODO Need to inspect this deeper
-        for i in range(result.shape[0]):
-            result[i] = sparse.linalg.spsolve(self.kg, b[i])
-
-        # solve
-        return result
+        # Build array from list, handling dtype conversion
+        result_array = np.array(result_list)
+        # Ensure dtype matches mesh
+        if result_array.dtype != self.mesh.dtype:
+            result_array = result_array.astype(self.mesh.dtype)
+        return result_array
 
 
 class EITForward(Forward):
