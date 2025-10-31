@@ -49,6 +49,7 @@ test = [
     "imageio",
     "black",
     "flake8",
+    "basedpyright",
 ]
 
 [tool.flake8]
