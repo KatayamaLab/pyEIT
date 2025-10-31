@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyeit"
+version = "1.3.3"
+description = "A python package for Electrical Impedance Tomography (EIT)."
+readme = "README.md"
+authors = [
+    { name = "Benyuan Liu", email = "liubenyuan@gmail.com" }
+]
+license = { text = "BSD-3-Clause" }
+requires-python = ">=3.9"
+keywords = ["eit"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "shapely",
+    "trimesh",
+    "imageio",
+    "allantools",
+]
+
+[project.urls]
+Homepage = "https://github.com/eitcom/pyeit"
+Download = "https://pypi.org/project/pyeit/#files"
+"Source Code" = "https://github.com/eitcom/pyeit"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+    "tox",
+    "imageio",
+    "black",
+    "flake8",
+]
+
+[tool.flake8]
+import-order-style = "pep8"
+application-import-names = "pyeit"
+ignore = ["E203", "E266", "E501", "W503"]
+max-line-length = 99
+max-complexity = 18
+select = ["B", "C", "E", "F", "W", "T4", "B950"]
+exclude = [".git", ".eggs", "__pycache__", "tests/", "docs/", "build/", "dist/"]
