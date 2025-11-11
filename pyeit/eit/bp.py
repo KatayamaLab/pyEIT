@@ -77,7 +77,8 @@ class BP(EitBase):
             complex-valued np.ndarray, changes of conductivities
         """
         self._check_solver_is_ready()
-        a = np.dot(v1, v0) / np.dot(v0, v0)
+        # Use vdot for complex-safe dot product (computes v1* · v0)
+        a = np.vdot(v1, v0) / np.vdot(v0, v0)
         vn = -(v1 - a * v0) / np.sign(v0.real)
         return np.dot(self.H, vn.transpose())
 

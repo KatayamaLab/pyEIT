@@ -53,7 +53,9 @@ class SVD(JAC):
             self.H = np.linalg.pinv(self.J, rcond=rcond)
 
         elif method == "svd":
-            JtJ = np.dot(self.J.T, self.J)
+            # Use Hermitian transpose for complex matrices
+            j_conj_t = self.J.conj().T if np.iscomplexobj(self.J) else self.J.T
+            JtJ = np.dot(j_conj_t, self.J)
 
             # using svd
             # U, s, Ut = np.linalg.svd(JtJ)
@@ -66,9 +68,16 @@ class SVD(JAC):
             s = s[idx[:n_ord]]
             U = U[:, idx[:n_ord]]
 
-            # pseudo inverse
-            JtJ_inv = np.dot(U, np.dot(np.diag(s**-1), U.T))
-            self.H = np.dot(JtJ_inv, self.J.T)
+            # pseudo inverse with regularization for small/zero eigenvalues
+            # Avoid division by zero for very small eigenvalues
+            s_inv = np.zeros_like(s, dtype=np.complex128 if np.iscomplexobj(s) else float)
+            for i, s_i in enumerate(s):
+                if np.abs(s_i) > 1e-10:
+                    s_inv[i] = 1.0 / s_i
+            
+            u_conj_t = U.conj().T if np.iscomplexobj(U) else U.T
+            JtJ_inv = np.dot(U, np.dot(np.diag(s_inv), u_conj_t))
+            self.H = np.dot(JtJ_inv, j_conj_t)
         self.is_ready = True
 
     def gn(self):

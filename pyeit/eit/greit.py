@@ -103,19 +103,27 @@ class GREIT(EitBase):
         Generate H (or R) using distribution method for GREIT solver
 
         Args:
-            jac (np.ndarray): Jacobian matrix
-            w_mat (np.ndarray): meights matrix
+            jac (np.ndarray): Jacobian matrix (real or complex)
+            w_mat (np.ndarray): weights matrix
 
         Returns:
-            np.ndarray: H
+            np.ndarray: H matrix
         """
         lamb, p = self.params["lamb"], self.params["p"]
         # E[yy^T], it is more efficient to use left pinv than right pinv
-        j_j_w = np.dot(jac, jac.T)
-        r_mat = np.diag(np.diag(j_j_w) ** p)
+        # Use Hermitian transpose (conjugate transpose) for complex matrices
+        j_conj_t = jac.conj().T if np.iscomplexobj(jac) else jac.T
+        j_j_w = np.dot(jac, j_conj_t)
+        
+        # Regularization matrix with proper handling of complex values
+        if np.iscomplexobj(j_j_w):
+            r_mat = np.diag(np.abs(np.diag(j_j_w)) ** p)
+        else:
+            r_mat = np.diag(np.diag(j_j_w) ** p)
+        
         jac_inv = la.inv(j_j_w + lamb * r_mat)
         # RM = E[xx^T] / E[yy^T]
-        return np.dot(np.dot(w_mat.T, jac.T), jac_inv)
+        return np.dot(np.dot(w_mat.T, j_conj_t), jac_inv)
 
     def get_grid(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
